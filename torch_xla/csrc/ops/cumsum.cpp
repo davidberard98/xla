@@ -15,7 +15,8 @@ namespace torch_xla {
 namespace {
 
 xla::XlaOp LowerCumSum(xla::XlaOp input, int64_t dim,
-                       std::optional<at::ScalarType> dtype) {
+                       c10::optional<at::ScalarType> dtype, bool prepend) {
+  XLA_CHECK(!prepend) << "prepend=True case not implemented for aten::cumsum";
   xla::XlaOp casted_input = CastToScalarType(input, dtype);
   const xla::Shape& input_shape = ShapeHelper::ShapeOfXlaOp(casted_input);
   xla::XlaOp init = XlaHelpers::ScalarValue<float>(
@@ -26,7 +27,8 @@ xla::XlaOp LowerCumSum(xla::XlaOp input, int64_t dim,
 }
 
 xla::Shape NodeOutputShape(const torch::lazy::Value& input,
-                           std::optional<at::ScalarType> dtype) {
+                           c10::optional<at::ScalarType> dtype, bool prepend) {
+  XLA_CHECK(!prepend) << "prepend=True case not implemented for aten::cumsum";
   if (dtype) {
     return xla::ShapeUtil::ChangeElementType(
         GetXlaShape(input), MakeXlaPrimitiveType(*dtype, /*device=*/nullptr));
@@ -37,22 +39,24 @@ xla::Shape NodeOutputShape(const torch::lazy::Value& input,
 }  // namespace
 
 CumSum::CumSum(const torch::lazy::Value& input, int64_t dim,
-               std::optional<at::ScalarType> dtype)
+               c10::optional<at::ScalarType> dtype, bool prepend)
     : XlaNode(
           torch::lazy::OpKind(at::aten::cumsum), {input},
-          [&]() { return NodeOutputShape(input, dtype); },
+          [&]() { return NodeOutputShape(input, dtype, prepend); },
           /*num_outputs=*/1,
-          torch::lazy::MHash(dim, torch::lazy::OptionalOr<int>(dtype, -1))),
+          torch::lazy::MHash(dim, torch::lazy::OptionalOr<int>(dtype, -1),
+                             prepend)),
       dim_(dim),
-      dtype_(dtype) {}
+      dtype_(dtype),
+      prepend_(prepend) {}
 
 torch::lazy::NodePtr CumSum::Clone(torch::lazy::OpList operands) const {
-  return torch::lazy::MakeNode<CumSum>(operands.at(0), dim_, dtype_);
+  return torch::lazy::MakeNode<CumSum>(operands.at(0), dim_, dtype_, prepend_);
 }
 
 XlaOpVector CumSum::Lower(LoweringContext* loctx) const {
   xla::XlaOp input = loctx->GetOutputOp(operand(0));
-  return ReturnOp(LowerCumSum(input, dim_, dtype_), loctx);
+  return ReturnOp(LowerCumSum(input, dim_, dtype_, prepend_), loctx);
 }
 
 std::string CumSum::ToString() const {
@@ -61,6 +65,7 @@ std::string CumSum::ToString() const {
   if (dtype_) {
     ss << ", dtype=" << *dtype_;
   }
+  ss << ", prepend=" << prepend_;
   return ss.str();
 }
 

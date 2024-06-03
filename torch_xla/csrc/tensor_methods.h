@@ -354,11 +354,11 @@ XLATensorPtr cross(const XLATensorPtr& input, const XLATensorPtr& other,
 
 // Returns the cumulative product of elements of input in the given dimension.
 XLATensorPtr cumprod(const XLATensorPtr& input, int64_t dim,
-                     std::optional<at::ScalarType> dtype);
+                     c10::optional<at::ScalarType> dtype, bool prepend);
 
 // Returns the cumulative sum of elements of input in the given dimension.
 XLATensorPtr cumsum(const XLATensorPtr& input, int64_t dim,
-                    std::optional<at::ScalarType> dtype);
+                    c10::optional<at::ScalarType> dtype, bool prepend);
 
 // If the input is a matrix (2-D tensor), returns a 1-D tensor with the
 // diagonal elements of the input. If the input is a vector (1-D tensor),

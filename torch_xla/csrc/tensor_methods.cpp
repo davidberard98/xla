@@ -1183,26 +1183,30 @@ XLATensorPtr cross(const XLATensorPtr& input, const XLATensorPtr& other,
 }
 
 XLATensorPtr cumprod(const XLATensorPtr& input, int64_t dim,
-                     std::optional<at::ScalarType> dtype) {
+                     c10::optional<at::ScalarType> dtype, bool prepend) {
+  XLA_CHECK(!prepend) << "prepend=True not implemented for aten::cumprod";
   int64_t canonical_dim =
       torch::lazy::GetCanonicalDimensionIndex(dim, input->shape().get().rank());
   if (!dtype) {
     dtype = input->dtype_optional();
   }
   return input->CreateFrom(
-      torch::lazy::MakeNode<CumProd>(input->GetIrValue(), canonical_dim, dtype),
+      torch::lazy::MakeNode<CumProd>(input->GetIrValue(), canonical_dim, dtype,
+                                     prepend),
       dtype);
 }
 
 XLATensorPtr cumsum(const XLATensorPtr& input, int64_t dim,
-                    std::optional<at::ScalarType> dtype) {
+                    c10::optional<at::ScalarType> dtype, bool prepend) {
+  XLA_CHECK(!prepend) << "prepend=True not implemented for aten::cumsum";
   int64_t canonical_dim =
       torch::lazy::GetCanonicalDimensionIndex(dim, input->shape().get().rank());
   if (!dtype) {
     dtype = input->dtype_optional();
   }
   return input->CreateFrom(
-      torch::lazy::MakeNode<CumSum>(input->GetIrValue(), canonical_dim, dtype),
+      torch::lazy::MakeNode<CumSum>(input->GetIrValue(), canonical_dim, dtype,
+                                    prepend),
       dtype);
 }
 

@@ -16,7 +16,8 @@ namespace torch_xla {
 namespace {
 
 xla::XlaOp LowerCumProd(xla::XlaOp input, int64_t dim,
-                        std::optional<at::ScalarType> dtype) {
+                        c10::optional<at::ScalarType> dtype, bool prepend) {
+  XLA_CHECK(!prepend) << "prepend=True not implemented for aten::cumprod";
   xla::XlaOp casted_input = CastToScalarType(input, dtype);
   const xla::Shape& input_shape = ShapeHelper::ShapeOfXlaOp(casted_input);
   xla::XlaOp init =
@@ -27,7 +28,8 @@ xla::XlaOp LowerCumProd(xla::XlaOp input, int64_t dim,
 }
 
 xla::Shape NodeOutputShape(const torch::lazy::Value& input,
-                           std::optional<at::ScalarType> dtype) {
+                           c10::optional<at::ScalarType> dtype, bool prepend) {
+  XLA_CHECK(!prepend) << "prepend=True not implemented for aten::cumprod";
   if (dtype) {
     return xla::ShapeUtil::ChangeElementType(
         GetXlaShape(input), MakeXlaPrimitiveType(*dtype, /*device=*/nullptr));
@@ -38,22 +40,24 @@ xla::Shape NodeOutputShape(const torch::lazy::Value& input,
 }  // namespace
 
 CumProd::CumProd(const torch::lazy::Value& input, int64_t dim,
-                 std::optional<at::ScalarType> dtype)
+                 c10::optional<at::ScalarType> dtype, bool prepend)
     : XlaNode(
           torch::lazy::OpKind(at::aten::cumprod), {input},
-          [&]() { return NodeOutputShape(input, dtype); },
+          [&]() { return NodeOutputShape(input, dtype, prepend); },
           /*num_outputs=*/1,
-          torch::lazy::MHash(dim, torch::lazy::OptionalOr<int>(dtype, -1))),
+          torch::lazy::MHash(dim, torch::lazy::OptionalOr<int>(dtype, -1),
+                             prepend)),
       dim_(dim),
-      dtype_(dtype) {}
+      dtype_(dtype),
+      prepend_(prepend) {}
 
 torch::lazy::NodePtr CumProd::Clone(torch::lazy::OpList operands) const {
-  return torch::lazy::MakeNode<CumProd>(operands.at(0), dim_, dtype_);
+  return torch::lazy::MakeNode<CumProd>(operands.at(0), dim_, dtype_, prepend_);
 }
 
 XlaOpVector CumProd::Lower(LoweringContext* loctx) const {
   xla::XlaOp input = loctx->GetOutputOp(operand(0));
-  return ReturnOp(LowerCumProd(input, dim_, dtype_), loctx);
+  return ReturnOp(LowerCumProd(input, dim_, dtype_, prepend_), loctx);
 }
 
 std::string CumProd::ToString() const {
@@ -62,6 +66,7 @@ std::string CumProd::ToString() const {
   if (dtype_) {
     ss << ", dtype=" << *dtype_;
   }
+  ss << ", prepend=" << prepend_;
   return ss.str();
 }
 

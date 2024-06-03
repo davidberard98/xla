@@ -1294,7 +1294,8 @@ at::Tensor XLANativeFunctions::cross(const at::Tensor& self,
 }
 
 at::Tensor XLANativeFunctions::cumprod(const at::Tensor& self, int64_t dim,
-                                       std::optional<at::ScalarType> dtype) {
+                                       c10::optional<at::ScalarType> dtype,
+                                       bool prepend) {
   TORCH_LAZY_FN_COUNTER_TIMED_TRACING("xla::");
   XLATensorPtr self_tensor = bridge::GetXlaTensor(self);
   std::optional<at::ScalarType> promoted_dtype =
@@ -1304,18 +1305,25 @@ at::Tensor XLANativeFunctions::cumprod(const at::Tensor& self, int64_t dim,
     // XLA reduce-window does not support S64 mode.
     return at::native::call_fallback_fn<&xla_cpu_fallback,
                                         ATEN_OP(cumprod)>::call(self, dim,
-                                                                dtype);
+                                                                dtype, prepend);
   }
   return bridge::AtenFromXlaTensor(
-      tensor_methods::cumprod(self_tensor, dim, promoted_dtype));
+      tensor_methods::cumprod(self_tensor, dim, promoted_dtype, prepend));
 }
 
 at::Tensor XLANativeFunctions::cumsum(const at::Tensor& self, int64_t dim,
-                                      std::optional<at::ScalarType> dtype) {
+                                      c10::optional<at::ScalarType> dtype,
+                                      bool prepend) {
   TORCH_LAZY_FN_COUNTER_TIMED_TRACING("xla::");
   XLATensorPtr self_tensor = bridge::GetXlaTensor(self);
+  if (IsOperationOnType(dtype, self_tensor->dtype(), at::ScalarType::Long)) {
+    // XLA reduce-window does not support S64 mode.
+    return at::native::call_fallback_fn<&xla_cpu_fallback,
+                                        ATEN_OP(cumsum)>::call(self, dim, dtype,
+                                                               prepend);
+  }
   return bridge::AtenFromXlaTensor(
-      tensor_methods::cumsum(self_tensor, dim, dtype));
+      tensor_methods::cumsum(self_tensor, dim, dtype, prepend));
 }
 
 // TODO(alanwaketan): Let's rewrite a without reusing other native functions.

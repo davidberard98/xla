@@ -11,7 +11,7 @@ namespace torch_xla {
 class CumProd : public XlaNode {
  public:
   CumProd(const torch::lazy::Value& input, int64_t dim,
-          std::optional<at::ScalarType> dtype);
+          c10::optional<at::ScalarType> dtype, bool prepend);
 
   std::string ToString() const override;
 
@@ -23,9 +23,12 @@ class CumProd : public XlaNode {
 
   const std::optional<at::ScalarType>& dtype() const { return dtype_; }
 
+  const bool prepend() const { return prepend_; }
+
  private:
   int64_t dim_;
-  std::optional<at::ScalarType> dtype_;
+  c10::optional<at::ScalarType> dtype_;
+  bool prepend_;
 };
 
 }  // namespace torch_xla
